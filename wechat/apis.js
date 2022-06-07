@@ -1,5 +1,5 @@
 import { resolve, join } from 'path';
-import { writeFile } from 'fs';
+import { writeFile, writeFileSync } from 'fs';
 import { format } from 'util';
 import got from 'got';
 import stringRandom from 'string-random'; // 随机字符串
@@ -180,4 +180,27 @@ async function getJsSDKConfig() {
   }
 }
 
-export { getAccessToken, createMenus, handleMsg, getJsSDKConfig };
+/**
+ * 下载用户上传的mediaId对应的图片
+ * @param {string} mediaId 图片资源的id
+ */
+async function cacheImageByMediaId(mediaId) {
+  try {
+    const searchParams = new URLSearchParams([
+      ['access_token', access_token],
+      ['media_id', mediaId],
+    ]);
+    const { body } = await got.get(`https://api.weixin.qq.com/cgi-bin/media/get`, {
+        responseType: 'buffer',
+        searchParams
+      }
+    );
+    const filePath = join(resolve(), '/public/imgs/', mediaId + '.png');
+    writeFileSync(filePath, body);
+    return Promise.resolve(`/imgs/${mediaId}.png`);
+  } catch (e) {
+    throw new Error(e);
+  }
+}
+
+export { getAccessToken, createMenus, handleMsg, getJsSDKConfig, cacheImageByMediaId };

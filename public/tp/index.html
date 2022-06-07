@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>微信公众号测试页面</title>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="http://res.wx.qq.com/open/js/jweixin-1.2.0.js"></script>
+    <script src="https://unpkg.com/vconsole@latest/dist/vconsole.min.js"></script>
+  </head>
+  <body>
+    <div id="app">
+      <button @click="pickImage">选择照片</button>
+      <img v-for="src in imgSrcList" :src="src" :key="src" width="100%" />
+    </div>
+    <script type="text/javascript">
+      new window.VConsole();
+      const versions = function(){
+        var u = navigator.userAgent, app = navigator.appVersion;
+        return {
+          trident: u.indexOf('Trident') > -1, // IE内核
+          presto: u.indexOf('Presto') > -1, // opera内核
+          webKit: u.indexOf('AppleWebKit') > -1, // 苹果、谷歌内核
+          gecko: u.indexOf('Gecko') > -1 && u.indexOf('KHTML') === -1,// 火狐内核
+          mobile: !!u.match(/AppleWebKit.*Mobile.*/), // 是否为移动终端
+          ios: !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/), // iOS终端
+          android: u.indexOf('Android') > -1 || u.indexOf('Adr') > -1, // Android终端
+          iPhone: u.indexOf('iPhone') > -1 , // 是否为iPhone或者QQHD浏览器
+          iPad: u.indexOf('iPad') > -1, // 是否iPad
+          webApp: u.indexOf('Safari') === -1, // 是否web应该程序，没有头部与底部
+          weixin: u.indexOf('MicroMessenger') > -1, // 是否微信 （2015-01-22新增）
+          qq: u.match(/\sQQ/i) === "qq" // 是否QQ
+        };
+      }();
+      /**
+       * @description 过滤状态为fulfilled的数据
+       * @param {array} dataList Promise.allSettled返回的数据
+       * @return {array}
+       */
+      function filterFulfilledValues(dataList) {
+        return dataList.reduce((res, item) => {
+          if ('value' in item) {
+            res.push(item.value);
+          }
+          return res;
+        }, [])
+      };
+    </script>
+    <script type="module">
+      import Vue from 'https://unpkg.com/vue@2.6.14/dist/vue.esm.browser.min.js';
+      const jsApiList = [
+        'chooseImage',
+        'previewImage',
+        'uploadImage',
+        'downloadImage',
+        'getLocalImgData',
+        'getNetworkType',
+        'openLocation',
+        'getLocation',
+        'scanQRCode',
+        'chooseWXPay',
+        'openProductSpecificView',
+        'addCard',
+        'chooseCard',
+        'openCard',
+      ];
+
+      // 添加响应拦截器
+      axios.interceptors.response.use(({ status, data }) => {
+        return data;
+      }, function (error) {
+        return Promise.reject(error);
+      });
+
+      new Vue({
+        el: '#app',
+        data: {
+          imgSrcList: []
+        },
+        mounted() {
+          this.signatureWxJsSDK();
+        },
+        methods: {
+          // 微信js-sdk签名
+          async signatureWxJsSDK() {
+            const { code, data } = await axios.get('/wx/signature');
+            const { appId, timestamp, nonceStr, signature } = data;
+            wx.config({
+              debug: true,
+              appId,
+              timestamp,
+              nonceStr,
+              signature,
+              jsApiList,
+            });
+          },
+
+          /**
+           * @description 选择本地图片
+           */
+          pickImage() {
+            const vm = this;
+            wx.ready(() => {
+              wx.chooseImage({
+                count: 9,
+                sizeType: ['original', 'compressed'],
+                sourceType: ['album', 'camera'],
+                success({ localIds }) {
+                  // 由于ios端的微信浏览器内核并不是采用腾讯x5内核，而是使用WKWebview，因此存在一些与安卓系统有所差异的情况
+                  // 批量上传，后端返回图片链接的方式预览（ios、安卓均可用）
+                  // vm.batchUpload(localIds).then(imgSrcList => vm.imgSrcList = imgSrcList);
+                  if (versions["ios"]) {
+                    // 通过对本地图片转成base64进行预览（仅限于ios端）
+                    vm.locaImg2Base64(localIds).then(imgBase64List => vm.imgSrcList = imgBase64List);
+                  } else {
+                    // 通过localId方式预览预览图片（仅限于于非WKWebview内核）
+                    vm.imgSrcList = localIds;
+                  }
+                },
+              });
+            })
+          },
+
+          /**
+           * @description 批量上传
+           * @param {array} localIds 本地图片列表
+           */
+          async batchUpload(localIds) {
+            try {
+              const uploadQueue = localIds.map(localId => this.uploadImage(localId));
+              const imgSrcList = await Promise.allSettled(uploadQueue);
+              return filterFulfilledValues(imgSrcList);
+            } catch (err) {
+              throw new Error(err);
+            }
+          },
+
+          /**
+           * @description 上传本地的图片
+           * @param {String} localId 本地图片id
+           * @return {Promise<any>}
+           */
+          uploadImage(localId) {
+            return new Promise((resolve, reject) => {
+              wx.uploadImage({
+                localId, // 需要上传的图片的本地ID，由 chooseImage 接口获得
+                isShowProgressTips: 1, // 默认为1，显示进度提示
+                success({ serverId }) {
+                  axios.get('/wx/fetchMediaUrl', {
+                    params: { serverId }
+                  }).then(({ imgSrc }) => {
+                    resolve(imgSrc);
+                  })
+                },
+                error(err) {
+                  reject(err)
+                },
+              });
+            })
+          },
+
+          /**
+           * @description 获取本地图片的base64，此接口仅在 iOS WKWebview 下提供，用于兼容 iOS WKWebview 不支持 localId 直接显示图片的问题
+           * @param {array} localIds 本地图片列表
+           * @return {Promise<string>} 返回base64数组
+           */
+          async locaImg2Base64(localIds) {
+            const getLocalImgData = function(localId) {
+              return new Promise((resolve, reject) => {
+                wx.getLocalImgData({
+                  localId,
+                  success({ localData }) {
+                    resolve(localData);
+                  },
+                  error(err) {
+                    reject(err)
+                  },
+                });
+              });
+            }
+            const getBase64Queue = localIds.map(localId => getLocalImgData(localId));
+            const imgSrcList = await Promise.allSettled(getBase64Queue);
+            return filterFulfilledValues(imgSrcList);
+          },
+        },
+      });
+    </script>
+  </body>
+</html>

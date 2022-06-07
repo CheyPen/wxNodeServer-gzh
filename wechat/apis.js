@@ -38,7 +38,8 @@ async function getAccessToken() {
             expires_time: currentTime + expires_in * 1000,
           }),
           (err) => {
-            throw new Error(err);
+            if (err) throw err;
+            console.log('The file has been saved!');
           }
         );
         return newAccessToken;
@@ -47,8 +48,8 @@ async function getAccessToken() {
       }
     }
     return access_token;
-  } catch (e) {
-    throw new Error(e);
+  } catch (err) {
+    throw err;
   }
 }
 
@@ -64,8 +65,8 @@ async function createMenus() {
       json: menus,
     });
     return body;
-  } catch (e) {
-    return Promise.reject(e);
+  } catch (err) {
+    return Promise.reject(err);
   }
 }
 
@@ -175,8 +176,8 @@ async function getJsSDKConfig() {
     const string1 = `jsapi_ticket=${ticket}&noncestr=${nonceStr}&timestamp=${timestamp}&url=${testPageUrl}`;
     const signature = cryptoInst.update(string1, 'utf8').digest('hex'); // 对传入的字符串进行加密
     return { appId: appID, timestamp, nonceStr, signature };
-  } catch (e) {
-    throw new Error(e);
+  } catch (err) {
+    throw err;
   }
 }
 
@@ -198,8 +199,8 @@ async function cacheImageByMediaId(mediaId) {
     const filePath = join(resolve(), '/public/imgs/', mediaId + '.png');
     writeFileSync(filePath, body);
     return Promise.resolve(`/imgs/${mediaId}.png`);
-  } catch (e) {
-    throw new Error(e);
+  } catch (err) {
+    throw err;
   }
 }
 

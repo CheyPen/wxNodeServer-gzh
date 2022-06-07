@@ -12,7 +12,13 @@
   <body>
     <div id="app">
       <button @click="pickImage">选择照片</button>
-      <img v-for="src in imgSrcList" :src="src" :key="src" width="100%" />
+      <img
+        v-for="src in imgSrcList"
+        :src="src"
+        :key="src"
+        @click="previewImage(src)"
+        width="100%"
+      />
     </div>
     <script type="text/javascript">
       new window.VConsole();
@@ -150,7 +156,7 @@
                   axios.get('/wx/fetchMediaUrl', {
                     params: { serverId }
                   }).then(({ imgSrc }) => {
-                    resolve(imgSrc);
+                    resolve(window.location.origin + imgSrc);
                   })
                 },
                 error(err) {
@@ -183,6 +189,17 @@
             const imgSrcList = await Promise.allSettled(getBase64Queue);
             return filterFulfilledValues(imgSrcList);
           },
+
+          /**
+           * @description 预览图片
+           * @param {String} src 图片链接（可以是微信体统的图片地址，也可以是服务端返回的http链接）
+           */
+          previewImage(src) {
+            wx.previewImage({
+              current: src,
+              urls: this.imgSrcList
+            });
+          }
         },
       });
     </script>

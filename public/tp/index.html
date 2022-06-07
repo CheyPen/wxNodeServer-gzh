@@ -117,14 +117,13 @@
                 sizeType: ['original', 'compressed'],
                 sourceType: ['album', 'camera'],
                 success({ localIds }) {
-                  // 由于ios端的微信浏览器内核并不是采用腾讯x5内核，而是使用WKWebview，因此存在一些与安卓系统有所差异的情况
                   // 批量上传，后端返回图片链接的方式预览（ios、安卓均可用）
                   // vm.batchUpload(localIds).then(imgSrcList => vm.imgSrcList = imgSrcList);
                   if (versions["ios"]) {
                     // 通过对本地图片转成base64进行预览（仅限于ios端）
                     vm.locaImg2Base64(localIds).then(imgBase64List => vm.imgSrcList = imgBase64List);
                   } else {
-                    // 通过localId方式预览预览图片（仅限于于非WKWebview内核）
+                    // 通过localId方式预览预览图片（仅限于于非WKWebview）
                     vm.imgSrcList = localIds;
                   }
                 },

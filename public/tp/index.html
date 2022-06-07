@@ -39,6 +39,7 @@
           qq: u.match(/\sQQ/i) === "qq" // 是否QQ
         };
       }();
+
       /**
        * @description 过滤状态为fulfilled的数据
        * @param {array} dataList Promise.allSettled返回的数据
@@ -88,7 +89,9 @@
           this.signatureWxJsSDK();
         },
         methods: {
-          // 微信js-sdk签名
+          /**
+           * @description 微信js-sdk签名
+           */
           async signatureWxJsSDK() {
             const { code, data } = await axios.get('/wx/signature');
             const { appId, timestamp, nonceStr, signature } = data;
@@ -104,12 +107,13 @@
 
           /**
            * @description 选择本地图片
+           * @param {number} count 允许选择图片的最大数量
            */
-          pickImage() {
+          pickImage(count = 9) {
             const vm = this;
             wx.ready(() => {
               wx.chooseImage({
-                count: 9,
+                count,
                 sizeType: ['original', 'compressed'],
                 sourceType: ['album', 'camera'],
                 success({ localIds }) {
@@ -131,6 +135,7 @@
           /**
            * @description 批量上传
            * @param {array} localIds 本地图片列表
+           * @return {Promise<array>} 图片链接列表
            */
           async batchUpload(localIds) {
             try {
@@ -145,7 +150,7 @@
           /**
            * @description 上传本地的图片
            * @param {String} localId 本地图片id
-           * @return {Promise<any>}
+           * @return {Promise<string>} 图片http地址
            */
           uploadImage(localId) {
             return new Promise((resolve, reject) => {
@@ -172,7 +177,7 @@
            * @return {Promise<string>} 返回base64数组
            */
           async locaImg2Base64(localIds) {
-            const getLocalImgData = function(localId) {
+            const getLocalImgData = (localId) => {
               return new Promise((resolve, reject) => {
                 wx.getLocalImgData({
                   localId,

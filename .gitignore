@@ -5,7 +5,6 @@ node_modules
 
 # custom files
 public/imgs/**
-wechat/access_token.json
 
 
 # local env files

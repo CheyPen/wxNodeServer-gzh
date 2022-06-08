@@ -11,11 +11,8 @@ import { txtMsg, graphicMsg } from './msg.js';
 import accessToken from './access_token.json' assert { type: 'json' };
 import menus from './menus.json' assert { type: 'json' };
 
-const { appID, appScrect, wxApiURLs } = wxConfig;
+const { token, appID, appScrect, wxApiURLs } = wxConfig;
 const { access_token, expires_time } = accessToken;
-const {
-  button: [{ url: testPageUrl }],
-} = menus;
 
 /**
  * @description 获取微信公众号access_token
@@ -152,6 +149,18 @@ async function handleMsg(req, res) {
   });
 }
 
+function wxAuthInterface({ signature, timestamp, nonce, echostr }) {
+  // 将token、timestamp、nonce三个参数进行字典序排序，并拼接成一个字符串进行sha1加密
+  const string1 = [token, timestamp, nonce].sort().join('');
+  const cryptoInst = crypto.createHash('sha1'); // 创建加密类型
+  var cryptosStr = cryptoInst.update(string1, 'utf8').digest('hex'); // 对传入的字符串进行加密
+  // 开发者获得加密后的字符串可与signature对比，标识该请求来源于微信
+  if (cryptosStr === signature) {
+    return echostr;
+  }
+  return 'mismatch';
+};
+
 /**
  * @description 获取微信js-sdk配置参数
  * 获得jsapi_ticket之后，就可以生成 JS-SDK 权限验证的签名了。
@@ -160,20 +169,21 @@ async function handleMsg(req, res) {
       对所有待签名参数按照字段名的ASCII 码从小到大排序（字典序）后，使用 URL 键值对的格式（即key1=value1&key2=value2…）拼接成字符串string1。
       这里需要注意的是所有参数名均为小写字符。对string1作sha1加密，字段名和字段值都采用原始值，不进行URL 转义。即signature=sha1(string1)。
  * @link https://developers.weixin.qq.com/doc/offiaccount/OA_Web_Apps/JS-SDK.html
+ * @param {string} pageUrl 当前网页的URL，不包含#及其后面部分
  * @returns {Promise<{ appId: string, timestamp: string, nonceStr: string, signature: string }>}
  */
-async function getJsSDKConfig() {
+async function getJsSDKConfig(pageUrl) {
   try {
     const access_token = await getAccessToken();
     const url = format(wxApiURLs.jsApiTicketURL, access_token);
     const { body } = await got(url, {
       responseType: 'json',
     });
-    const timestamp = new Date().getTime();
+    const timestamp =  Number(String(new Date().getTime()).substr(0, 10)); // new Date().getTime();
     const nonceStr = stringRandom(16);
     const ticket = body.ticket;
     const cryptoInst = crypto.createHash('sha1'); // 设置加密类型
-    const string1 = `jsapi_ticket=${ticket}&noncestr=${nonceStr}&timestamp=${timestamp}&url=${testPageUrl}`;
+    const string1 = `jsapi_ticket=${ticket}&noncestr=${nonceStr}&timestamp=${timestamp}&url=${pageUrl}`;
     const signature = cryptoInst.update(string1, 'utf8').digest('hex'); // 对传入的字符串进行加密
     return { appId: appID, timestamp, nonceStr, signature };
   } catch (err) {
@@ -204,4 +214,4 @@ async function cacheImageByMediaId(mediaId) {
   }
 }
 
-export { getAccessToken, createMenus, handleMsg, getJsSDKConfig, cacheImageByMediaId };
+export { getAccessToken, createMenus, handleMsg, wxAuthInterface, getJsSDKConfig, cacheImageByMediaId };

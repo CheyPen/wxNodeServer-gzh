@@ -91,9 +91,14 @@
         methods: {
           /**
            * @description 微信js-sdk签名
+           * 所有需要使用JS-SDK的页面必须先注入配置信息，否则将无法调用（同一个url仅需调用一次，对于变化url的SPA的web app可在每次url变化时进行调用,
+           * 目前Android微信客户端不支持pushState的H5新特性，所以使用pushState来实现web app的页面会导致签名失败，此问题会在Android6.2中修复）。
            */
           async signatureWxJsSDK() {
-            const { code, data } = await axios.get('/wx/signature');
+            const pageUrl = window.location.href.split('#')[0]; // 当前网页的URL，不包含#及其后面部分
+            const { code, data } = await axios.get('/wx/signature', {
+              params: { url: pageUrl }
+            });
             const { appId, timestamp, nonceStr, signature } = data;
             wx.config({
               debug: true,

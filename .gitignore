@@ -3,7 +3,9 @@ node_modules
 /dist
 **/dist
 
+# custom files
 public/imgs/**
+wechat/access_token.json
 
 
 # local env files

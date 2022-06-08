@@ -1,5 +1,5 @@
 import express from 'express';
-import { createMenus, handleMsg, getJsSDKConfig, cacheImageByMediaId } from './wechat/apis.js';
+import { wxAuthInterface, createMenus, handleMsg, getJsSDKConfig, cacheImageByMediaId } from './wechat/apis.js';
 
 const app = express();
 
@@ -10,8 +10,14 @@ app.post('/', async (req, res) => {
   handleMsg(req, res);
 })
 
+app.get('/wx', async (req, res) => {
+  const result = wxAuthInterface(req.query);
+  res.send(result);
+});
+
 app.get('/wx/signature', async (req, res) => {
-  const data = await getJsSDKConfig();
+  const { url: pageUrl } = req.query;
+  const data = await getJsSDKConfig(pageUrl);
   res.send({
     code: 200,
     data

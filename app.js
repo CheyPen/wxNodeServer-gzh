@@ -1,17 +1,17 @@
 import express from 'express';
-import { wxAuthInterface, createMenus, handleMsg, getJsSDKConfig, cacheImageByMediaId } from './wechat/apis.js';
+import { wxAuthToken, createMenus, handleMsg, getJsSDKConfig, cacheImageByMediaId } from './wechat/apis.js';
 
 const app = express();
 
 app.use(express.static('./public'))
 
-app.post('/', async (req, res) => {
+app.post('/wx', async (req, res) => {
   await createMenus();
   handleMsg(req, res);
-})
+});
 
 app.get('/wx', async (req, res) => {
-  const result = wxAuthInterface(req.query);
+  const result = wxAuthToken(req.query);
   res.send(result);
 });
 

@@ -149,7 +149,7 @@ async function handleMsg(req, res) {
   });
 }
 
-function wxAuthInterface({ signature, timestamp, nonce, echostr }) {
+function wxAuthToken({ signature, timestamp, nonce, echostr }) {
   // 将token、timestamp、nonce三个参数进行字典序排序，并拼接成一个字符串进行sha1加密
   const string1 = [token, timestamp, nonce].sort().join('');
   const cryptoInst = crypto.createHash('sha1'); // 创建加密类型
@@ -214,4 +214,4 @@ async function cacheImageByMediaId(mediaId) {
   }
 }
 
-export { getAccessToken, createMenus, handleMsg, wxAuthInterface, getJsSDKConfig, cacheImageByMediaId };
+export { getAccessToken, createMenus, handleMsg, wxAuthToken, getJsSDKConfig, cacheImageByMediaId };

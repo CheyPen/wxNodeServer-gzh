@@ -27,15 +27,21 @@ app.get('/wx/signature', async (req, res) => {
 app.get('/wx/fetchMediaUrl', async (req, res) => {
   try {
     const { serverId } = req.query;
-    const imgSrc = await cacheImageByMediaId(serverId);
-    res.send({
-      code: 200,
-      msg: '图片缓存成功',
-      imgSrc
-    });
+    if (!serverId) {
+      res.send({
+        code: -1,
+        msg: 'serverId is required'
+      });
+    } else {
+      const imgSrc = await cacheImageByMediaId(serverId);
+      res.send({
+        code: 200,
+        msg: '图片缓存成功',
+        imgSrc,
+      });
+    }
   } catch (err) {
     res.send(err);
-    throw new Error(err);
   }
 });
 

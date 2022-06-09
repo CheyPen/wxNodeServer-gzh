@@ -11,18 +11,24 @@
   </head>
   <body>
     <div id="app">
-      <button @click="pickImage">选择照片</button>
-      <img
-        v-for="src in imgSrcList"
-        :src="src"
-        :key="src"
-        @click="previewImage(src)"
-        width="100%"
-      />
+      <template>
+        <div class="container">
+          <button @click="pickImage">选择照片</button>
+          <button @click="isGetUrl = !isGetUrl">选择后是否直接上传服务器：{{ isGetUrl }}</button>
+          <button @click="uploadImages">确认</button>
+          <img
+            v-for="src in viewImages"
+            :src="src"
+            :key="src"
+            @click="previewImage(src)"
+            width="100%"
+          />
+        </div>
+      </template>
     </div>
     <script type="text/javascript">
       new window.VConsole();
-      const versions = function(){
+      const versions = function() {
         var u = navigator.userAgent, app = navigator.appVersion;
         return {
           trident: u.indexOf('Trident') > -1, // IE内核
@@ -74,114 +80,107 @@
       ];
 
       // 添加响应拦截器
-      axios.interceptors.response.use(({ status, data }) => {
-        return data;
-      }, function (error) {
-        return Promise.reject(error);
-      });
-
-      new Vue({
-        el: '#app',
-        data: {
-          imgSrcList: []
+      axios.interceptors.response.use(
+        ({ status, data }) => {
+          return data;
         },
-        mounted() {
-          this.signatureWxJsSDK();
-        },
-        methods: {
-          /**
-           * @description 微信js-sdk签名
-           * 所有需要使用JS-SDK的页面必须先注入配置信息，否则将无法调用（同一个url仅需调用一次，对于变化url的SPA的web app可在每次url变化时进行调用,
-           * 目前Android微信客户端不支持pushState的H5新特性，所以使用pushState来实现web app的页面会导致签名失败，此问题会在Android6.2中修复）。
-           */
-          async signatureWxJsSDK() {
-            const pageUrl = window.location.href.split('#')[0]; // 当前网页的URL，不包含#及其后面部分
-            const { code, data } = await axios.get('/wx/signature', {
-              params: { url: pageUrl }
-            });
-            const { appId, timestamp, nonceStr, signature } = data;
-            wx.config({
-              debug: true,
-              appId,
-              timestamp,
-              nonceStr,
-              signature,
-              jsApiList,
-            });
-          },
+        (error) => {
+          return Promise.reject(error);
+        }
+      );
 
-          /**
-           * @description 选择本地图片
-           * @param {number} count 允许选择图片的最大数量
-           */
-          pickImage(count = 9) {
-            const vm = this;
-            wx.ready(() => {
-              wx.chooseImage({
-                count,
-                sizeType: ['original', 'compressed'],
-                sourceType: ['album', 'camera'],
-                success({ localIds }) {
-                  // 批量上传，后端返回图片链接的方式预览（ios、安卓均可用）
-                  // vm.batchUpload(localIds).then(imgSrcList => vm.imgSrcList = imgSrcList);
-                  if (versions["ios"]) {
-                    // 通过对本地图片转成base64进行预览（仅限于ios端）
-                    vm.locaImg2Base64(localIds).then(imgBase64List => vm.imgSrcList = imgBase64List);
-                  } else {
-                    // 通过localId方式预览预览图片（仅限于于非WKWebview）
-                    vm.imgSrcList = localIds;
-                  }
-                },
+      if (!versions["weixin"]) {
+        document.body.removeChild(document.querySelector('#app'));
+        alert('请在微信浏览器打开');
+      } else {
+        new Vue({
+          el: '#app',
+          data: {
+            isGetUrl: false,
+            viewImages: [], // 选中的图片（ios: base64、安卓: localId）
+            checkedLocalIds: [], // 选中的图片的localId集合
+          },
+          mounted() {
+            this.signatureWxJsSDK();
+          },
+          methods: {
+            /**
+             * @description 微信js-sdk签名
+             * 所有需要使用JS-SDK的页面必须先注入配置信息，否则将无法调用（同一个url仅需调用一次，对于变化url的SPA的web app可在每次url变化时进行调用,
+             * 目前Android微信客户端不支持pushState的H5新特性，所以使用pushState来实现web app的页面会导致签名失败，此问题会在Android6.2中修复）。
+             */
+            async signatureWxJsSDK() {
+              const pageUrl = window.location.href.split('#')[0]; // 当前网页的URL，不包含#及其后面部分
+              const { code, data } = await axios.get('/wx/signature', {
+                params: { url: pageUrl }
               });
-            })
-          },
-
-          /**
-           * @description 批量上传
-           * @param {array} localIds 本地图片列表
-           * @return {Promise<array>} 图片链接列表
-           */
-          async batchUpload(localIds) {
-            try {
-              const uploadQueue = localIds.map(localId => this.uploadImage(localId));
-              const imgSrcList = await Promise.allSettled(uploadQueue);
-              return filterFulfilledValues(imgSrcList);
-            } catch (err) {
-              throw new Error(err);
-            }
-          },
-
-          /**
-           * @description 上传本地的图片
-           * @param {String} localId 本地图片id
-           * @return {Promise<string>} 图片http地址
-           */
-          uploadImage(localId) {
-            return new Promise((resolve, reject) => {
-              wx.uploadImage({
-                localId, // 需要上传的图片的本地ID，由 chooseImage 接口获得
-                isShowProgressTips: 1, // 默认为1，显示进度提示
-                success({ serverId }) {
-                  axios.get('/wx/fetchMediaUrl', {
-                    params: { serverId }
-                  }).then(({ imgSrc }) => {
-                    resolve(window.location.origin + imgSrc);
-                  })
-                },
-                error(err) {
-                  reject(err)
-                },
+              const { appId, timestamp, nonceStr, signature } = data;
+              wx.config({
+                debug: true,
+                appId,
+                timestamp,
+                nonceStr,
+                signature,
+                jsApiList,
               });
-            })
-          },
+            },
 
-          /**
-           * @description 获取本地图片的base64，此接口仅在 iOS WKWebview 下提供，用于兼容 iOS WKWebview 不支持 localId 直接显示图片的问题
-           * @param {array} localIds 本地图片列表
-           * @return {Promise<string>} 返回base64数组
-           */
-          async locaImg2Base64(localIds) {
-            const getLocalImgData = (localId) => {
+            /**
+             * @description 选择本地图片
+             * @param {number} count 允许选择图片的最大数量
+             */
+            pickImage(count = 9) {
+              const vm = this;
+              wx.ready(() => {
+                wx.chooseImage({
+                  count,
+                  sizeType: ['original', 'compressed'],
+                  sourceType: ['album', 'camera'],
+                  success({ localIds }) {
+                    // 批量选中后直接得到后端返回的图片url地址
+                    if (this.isGetUrl) {
+                      vm.getImageUrlList(localIds).then(imageUrlList => vm.viewImages = imageUrlList);
+                    } else {
+                      if (versions["ios"]) {
+                        // 通过对本地图片转成base64进行预览（ios端）
+                        vm.getImageBase64List(localIds).then(imageBase64List => vm.viewImages = imageBase64List);
+                      } else {
+                        // 通过localId方式预览预览图片（非ios端）
+                        vm.viewImages = localIds;
+                      }
+                      vm.checkedLocalIds = localIds;
+                    }
+                  },
+                });
+              })
+            },
+
+            /**
+             * @description 获取图片的serverId
+             * @param {String} localId 图片localId
+             * @return {Promise<string>} serverId
+             */
+            localId2ServerId(localId) {
+              return new Promise((resolve, reject) => {
+                wx.uploadImage({
+                  localId, // 需要上传的图片的本地ID，由 chooseImage 接口获得
+                  isShowProgressTips: 1, // 默认为1，显示进度提示
+                  success({ serverId }) {
+                    resolve(serverId)
+                  },
+                  error(err) {
+                    reject(err)
+                  },
+                });
+              })
+            },
+
+            /**
+             * @description 通过localId得到图片的base64（ios下WKWebview特有）
+             * @param {String} localId 图片localId
+             * @return {Promise<string>} base64
+             */
+            localId2Base64(localId) {
               return new Promise((resolve, reject) => {
                 wx.getLocalImgData({
                   localId,
@@ -193,24 +192,72 @@
                   },
                 });
               });
-            }
-            const getBase64Queue = localIds.map(localId => getLocalImgData(localId));
-            const imgSrcList = await Promise.allSettled(getBase64Queue);
-            return filterFulfilledValues(imgSrcList);
-          },
+            },
 
-          /**
-           * @description 预览图片
-           * @param {String} src 图片链接（可以是微信体统的图片地址，也可以是服务端返回的http链接）
-           */
-          previewImage(src) {
-            wx.previewImage({
-              current: src,
-              urls: this.imgSrcList
-            });
-          }
-        },
-      });
+            /**
+             * @description 直接通过localId得到图片url链接
+             * @param {String} localId 图片localId
+             * @return {Promise<string>} 图片url地址
+             */
+            async localId2Url(localId) {
+              const serverId = await this.localId2ServerId(localId);
+              const { imgSrc } = await axios.get('/wx/fetchMediaUrl', {
+                params: { serverId }
+              })
+              return window.location.origin + imgSrc;
+            },
+
+            /**
+             * @description 直接获取到图片的url
+             * @param {array} localIds 图片localIds
+             * @return {Promise<array>}
+             */
+            async getImageUrlList(localIds) {
+              try {
+                const toUrlQueue = localIds.map(localId => this.localId2Url(localId));
+                const results = await Promise.allSettled(toUrlQueue);
+                return filterFulfilledValues(results);
+              } catch (err) {
+                throw new Error(err);
+              }
+            },
+
+            /**
+             * @description 获取本地图片的base64，此接口仅在 iOS WKWebview 下提供，用于兼容 iOS WKWebview 不支持 localId 直接显示图片的问题
+             * @param {array} localIds 本地图片列表
+             * @return {Promise<string>} 返回base64数组
+             */
+            async getImageBase64List(localIds) {
+              const toBase64Queue = localIds.map(localId => this.localId2Base64(localId));
+              const results = await Promise.allSettled(toBase64Queue);
+              return filterFulfilledValues(results);
+            },
+
+            /**
+             * @description 预览图片
+             * @param {String} src 图片链接（可以是微信体统的图片地址，也可以是服务端返回的http链接）
+             */
+            previewImage(src) {
+              wx.previewImage({
+                current: src,
+                urls: this.viewImages
+              });
+            },
+
+            /**
+             * @description 上传选中的图片
+             * @return {Promise<any>}
+             */
+            async uploadImages() {
+              const uploadQueue = this.checkedLocalIds.map(localId => this.localId2ServerId(localId));
+              const results = await Promise.allSettled(uploadQueue);
+              const serverIdList = filterFulfilledValues(results);
+              // TODO 将serverIdList上传
+              alert(`上传很成功！`)
+            }
+          },
+        });
+      }
     </script>
   </body>
 </html>

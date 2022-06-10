@@ -179,7 +179,7 @@ async function getJsSDKConfig(pageUrl) {
     const { body } = await got(url, {
       responseType: 'json',
     });
-    const timestamp =  Number(String(new Date().getTime()).substr(0, 10)); // new Date().getTime();
+    const timestamp = new Date().getTime();
     const nonceStr = stringRandom(16);
     const ticket = body.ticket;
     const cryptoInst = crypto.createHash('sha1'); // 设置加密类型

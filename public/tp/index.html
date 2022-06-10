@@ -14,9 +14,9 @@
       <template>
         <div class="container">
           <button @click="pickImage">选择照片</button>
-          <button @click="uploadImages">确认</button>
-          <button @click="toggleDebugger">是否开启调试模式：{{ isDebugger }}</button>
+          <button @click="toggleDebugMode">是否开启调试模式：{{ isDebugMode }}</button>
           <button @click="isGetUrl = !isGetUrl">选择后是否直接上传服务器：{{ isGetUrl }}</button>
+          <button @click="uploadImages">确认</button>
           <img
             v-for="src in viewImages"
             :src="src"
@@ -28,6 +28,7 @@
       </template>
     </div>
     <script type="text/javascript">
+      new window.VConsole();
       const versions = function() {
         var u = navigator.userAgent, app = navigator.appVersion;
         return {
@@ -88,7 +89,6 @@
           return Promise.reject(error);
         }
       );
-
       if (!versions["weixin"]) {
         document.body.removeChild(document.querySelector('#app'));
         alert('请在微信浏览器打开');
@@ -96,21 +96,20 @@
         new Vue({
           el: '#app',
           data: {
-            isDebugger: isDebugger,
+            isDebugMode: false,
             isGetUrl: false,
             viewImages: [], // 选中的图片（ios: base64、安卓: localId）
             checkedLocalIds: [], // 选中的图片的localId集合
           },
           mounted() {
-            new window.VConsole();
             this.signatureWxJsSDK();
           },
           methods: {
             /**
              * @description 切换调试模式
              */
-            toggleDebugger() {
-              this.isDebugger = !this.isDebugger;
+            toggleDebugMode() {
+              this.isDebugMode = !this.isDebugMode;
               this.signatureWxJsSDK();
             },
 
@@ -126,7 +125,7 @@
               });
               const { appId, timestamp, nonceStr, signature } = data;
               wx.config({
-                debug: this.isDebugger,
+                debug: this.isDebugMode,
                 appId,
                 timestamp,
                 nonceStr,

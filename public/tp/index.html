@@ -258,10 +258,16 @@
              * @return {Promise<any>}
              */
             async uploadImages() {
-              const uploadQueue = this.checkedLocalIds.map(localId => this.localId2ServerId(localId));
-              const results = await Promise.allSettled(uploadQueue);
-              const serverIdList = filterFulfilledValues(results);
-              // TODO 将serverIdList上传
+              if (this.checkedLocalIds.length === 0) {
+                alert('请选择你要上传的图片');
+                return;
+              }
+              if (!this.isGetUrl) {
+                const uploadQueue = this.checkedLocalIds.map(localId => this.localId2ServerId(localId));
+                const results = await Promise.allSettled(uploadQueue);
+                const serverIdList = filterFulfilledValues(results);
+                // TODO 将serverIdList上传
+              }
               alert(`上传很成功！`)
             }
           },

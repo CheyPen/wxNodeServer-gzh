@@ -1,7 +1,7 @@
 'use strict'; //设置为严格模式
 
 /**
- * 回复文本消息
+ * @description 回复文本消息
  * @param {String} toUser 接收用户
  * @param {String} fromUser 发送用户
  * @param {String} content 发送消息
@@ -15,8 +15,8 @@ function txtMsg(toUser, fromUser, content) {
   return xmlContent;
 }
 
-/*
- * 回复图片消息
+/**
+ * @description 回复图片消息
  * @param {String} toUser 接收用户
  * @param {String} fromUser 发送用户
  * @param {String} content 发送消息
@@ -31,7 +31,7 @@ function imageMsg(toUser, fromUser, mediaId) {
 }
 
 /**
- * 回复【文章/新增/图文】消息
+ * @description 回复【文章/新增/图文】消息
  * @param {String} toUser 接收用户
  * @param {String} fromUser 发送用户
  * @param {Array} contentArr 图文信息集合

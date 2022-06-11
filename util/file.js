@@ -15,6 +15,9 @@ function filterSpecifyTypeFile(files, fileType) {
 
 /**
  * @description 获取目标文件夹下的所有文件
+ * @param {string} dir 文件夹路径
+ * @param {object} options 配置项
+ * @returns {array} 符合配置的文件结合
  */
 export function getDirectoryFiles(dir, options, files = []) {
   const { deep, fileType } = (options = Object.assign({ deep: "shallow", fileType: "any" }, options || {}));

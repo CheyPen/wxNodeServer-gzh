@@ -4,7 +4,7 @@
  * 回复文本消息
  * @param {String} toUser 接收用户
  * @param {String} fromUser 发送用户
- * @param {String}  content 发送消息
+ * @param {String} content 发送消息
  */
 function txtMsg(toUser, fromUser, content) {
   var xmlContent = '<xml><ToUserName><![CDATA[' + toUser + ']]></ToUserName>';
@@ -15,11 +15,26 @@ function txtMsg(toUser, fromUser, content) {
   return xmlContent;
 }
 
-/**
- * 回复图文消息
+/*
+ * 回复图片消息
  * @param {String} toUser 接收用户
  * @param {String} fromUser 发送用户
- * @param {Array}  contentArr 图文信息集合
+ * @param {String} content 发送消息
+ */
+function imageMsg(toUser, fromUser, mediaId) {
+  var xmlContent = '<xml><ToUserName><![CDATA[' + toUser + ']]></ToUserName>';
+  xmlContent += '<FromUserName><![CDATA[' + fromUser + ']]></FromUserName>';
+  xmlContent += '<CreateTime>' + new Date().getTime() + '</CreateTime>';
+  xmlContent += '<MsgType><![CDATA[image]]></MsgType>';
+  xmlContent += '<Image><MediaId><![CDATA[' + mediaId + ']]></MediaId></Image></xml>';
+  return xmlContent;
+}
+
+/**
+ * 回复【文章/新增/图文】消息
+ * @param {String} toUser 接收用户
+ * @param {String} fromUser 发送用户
+ * @param {Array} contentArr 图文信息集合
  */
 function graphicMsg(toUser, fromUser, contentArr) {
   var xmlContent = '<xml><ToUserName><![CDATA[' + toUser + ']]></ToUserName>';
@@ -41,4 +56,4 @@ function graphicMsg(toUser, fromUser, contentArr) {
 }
 
 
-export { txtMsg, graphicMsg }
+export { txtMsg, imageMsg, graphicMsg }

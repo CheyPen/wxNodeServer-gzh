@@ -1,16 +1,20 @@
 import { resolve, join } from 'path';
-import { writeFile, writeFileSync } from 'fs';
+import { writeFile, writeFileSync, createReadStream } from 'fs';
 import { format } from 'util';
 import got from 'got';
+import rp from 'request-promise';
+import FormData from 'form-data';
 import stringRandom from 'string-random'; // 随机字符串
 import crypto from 'crypto'; // 加密模块
 import { XMLParser } from 'fast-xml-parser';
 
+import { getDirectoryLatestFile } from '../util/file.js';
 import { wxConfig } from './config.js';
-import { txtMsg, graphicMsg } from './msg.js';
+import { txtMsg, imageMsg, graphicMsg } from './msg.js';
 import accessToken from './access_token.json' assert { type: 'json' };
 import menus from './menus.json' assert { type: 'json' };
 
+const __dirname = resolve(); // node16版本中__dirname被移除了，通过path.resolve()可以获取当前项目的绝对路径
 const { token, appID, appScrect, wxApiURLs } = wxConfig;
 const { access_token, expires_time } = accessToken;
 
@@ -29,7 +33,7 @@ async function getAccessToken() {
       const { access_token: newAccessToken, expires_in } = body;
       if (newAccessToken) {
         writeFile(
-          join(resolve(), 'wechat', 'access_token.json'),
+          join(__dirname, 'wechat', 'access_token.json'),
           JSON.stringify({
             access_token: newAccessToken,
             expires_time: currentTime + expires_in * 1000,
@@ -68,6 +72,52 @@ async function createMenus() {
 }
 
 /**
+ * @description 获取本地素材的media_id
+ * @param {string} localMediaPath 本地素材的本地地址
+ * @param {string} type 素材的类型 图片：image 声音：voice 视频：video 缩略图：thumb
+ * @returns {Promise<string>}
+ */
+async function getMediaId(localMediaPath, type) {
+  try {
+    const access_token = await getAccessToken();
+    const searchParams = { access_token, type };
+    // 方法一：使用got作为请求库
+    const formData = new FormData();
+    formData.append('media', createReadStream(localMediaPath));
+    const options = {
+      searchParams,
+      headers: {
+        'content-type': 'multipart/form-data',
+      },
+      body: formData,
+      responseType: 'json',
+    };
+    const {
+      body: { media_id },
+    } = await got.post(`https://api.weixin.qq.com/cgi-bin/media/upload`, options);
+    // 方法二：使用request-promise作为请求库
+    // const options = {
+    //   method: 'POST',
+    //   uri: `https://api.weixin.qq.com/cgi-bin/media/upload?access_token=${access_token}&type=${type}`,
+    //   json: true,
+    //   formData: {
+    //     media: {
+    //       value: createReadStream(localMediaPath),
+    //       options: {
+    //         filename: localMediaPath.match(/\/(\w+\..*)$/)[1],
+    //         contentType: 'image/png',
+    //       },
+    //     },
+    //   },
+    // };
+    // const { media_id } = await rp(options);
+    return media_id;
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+/**
  * @description 处理微信公众号的消息 微信返回的数据为二进制的数据流，因此需要通过监听数据响应的方式获取完整的数据，利用数组做数据缓存
  */
 async function handleMsg(req, res) {
@@ -75,7 +125,7 @@ async function handleMsg(req, res) {
   req.on('data', (binaryData) => {
     data.push(binaryData);
   });
-  req.on('end', () => {
+  req.on('end', async () => {
     const msgXml = Buffer.concat(data).toString('utf-8');
     const parser = new XMLParser();
     const { xml } = parser.parse(msgXml);
@@ -85,7 +135,7 @@ async function handleMsg(req, res) {
     if (MsgType.toLowerCase() === 'event') {
       switch (Event.toLowerCase()) {
         case 'subscribe':
-          const content = '很荣幸被你关注';
+          const content = `很荣幸被你关注`;
           reportMsg = txtMsg(FromUserName, ToUserName, content);
           break;
         case 'click':
@@ -120,6 +170,12 @@ async function handleMsg(req, res) {
     } else {
       if (MsgType.toLowerCase() === 'text') {
         switch (Content) {
+          case '最新图片':
+            const dir = join(__dirname, '/public/imgs');
+            const { path: localMediaPath } = getDirectoryLatestFile(dir, 'png');
+            const mediaId = await getMediaId(localMediaPath, 'image');
+            reportMsg = imageMsg(FromUserName, ToUserName, mediaId);
+            break;
           case 1:
             reportMsg = txtMsg(FromUserName, ToUserName, 'Hello ！我的英文名字叫 F-QIP');
             break;
@@ -197,18 +253,19 @@ async function getJsSDKConfig(pageUrl) {
  */
 async function cacheImageByMediaId(mediaId) {
   try {
-    const searchParams = new URLSearchParams([
-      ['access_token', access_token],
-      ['media_id', mediaId],
-    ]);
+    const imagePath = `/imgs/${mediaId}.png`;
+    const filePath = join(__dirname, '/public', imagePath);
+    const searchParams = {
+      access_token,
+      media_id: mediaId,
+    };
     const { body } = await got.get(`https://api.weixin.qq.com/cgi-bin/media/get`, {
         responseType: 'buffer',
         searchParams
       }
     );
-    const filePath = join(resolve(), '/public/imgs/', mediaId + '.png');
     writeFileSync(filePath, body);
-    return Promise.resolve(`/imgs/${mediaId}.png`);
+    return Promise.resolve(imagePath);
   } catch (err) {
     throw err;
   }
